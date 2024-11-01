@@ -11,7 +11,8 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         jcenter()
+        maven { url 'https://maven.aliyun.com/repository/public/' }
     }
 }
-rootProject.name = "OplusHideZoomWindow"
+rootProject.name = "HyperHideZoomWindow"
 include ':app'
