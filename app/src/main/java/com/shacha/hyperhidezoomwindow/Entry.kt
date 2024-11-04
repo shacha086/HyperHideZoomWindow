@@ -1,5 +1,10 @@
 package com.shacha.hyperhidezoomwindow
 
+import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
@@ -7,8 +12,10 @@ import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
 import com.github.kyuubiran.ezxhelper.ObjectHelper
 import com.github.kyuubiran.ezxhelper.ObjectHelper.Companion.objectHelper
 import com.github.kyuubiran.ezxhelper.finders.ConstructorFinder.`-Static`.constructorFinder
+import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
 import com.github.kyuubiran.ezxhelper.paramTypes
 import com.github.kyuubiran.ezxhelper.params
+import com.shacha.hyperhidezoomwindow.Holder.systemUIWindowDecorationList
 import com.shacha.hyperhidezoomwindow.Util.toIdentityString
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
@@ -80,14 +87,39 @@ class Entry : IXposedHookLoadPackage {
                 // Part3: Rebuild SurfaceController on window mode changes to make sure Part1 will get
                 // applied instantly.
                 lpparam.rebuildSurfaceController()
+
+                @Suppress("DEPRECATION")
+                xSharedPreferences?.registerOnSharedPreferenceChangeListener { _, _ ->
+                    lpparam.rebuildSurfaceController()
+                }
             }
 
             "com.android.systemui" -> {
+
                 // Hide background
                 @Suppress("LocalVariableName") val MiuiBaseWindowDecoration = loadClass(
                     "com.android.wm.shell.miuimultiwinswitch.miuiwindowdecor.MiuiBaseWindowDecoration",
                     lpparam.classLoader
                 )
+                loadClass("com.android.systemui.SystemUIApplication", lpparam.classLoader).methodFinder().filterByName("onCreate").first()
+                    .createHook {
+                        after { param ->
+                            val application = param.thisObject as Application
+                            application.registerReceiver(object : BroadcastReceiver() {
+                                override fun onReceive(context: Context, intent: Intent) {
+                                    if (intent.action != BROADCAST_ACTION) {
+                                        return
+                                    }
+                                    systemUIWindowDecorationList.forEach {
+                                        MiuiBaseWindowDecoration.getDeclaredField("mTaskSurface").apply { isAccessible = true }.get(it)!!
+                                            .objectHelper().setSkipScreenshot(intent.getBooleanExtra("enabled", false))
+                                    }
+                                }
+
+                            }, IntentFilter(BROADCAST_ACTION))
+
+                        }
+                    }
                 MiuiBaseWindowDecoration.constructorFinder().filterByParamCount(14).first()
                     .createHook {
                         before { param ->
@@ -101,64 +133,7 @@ class Entry : IXposedHookLoadPackage {
                         after { param ->
                             XposedBridge.log("hooked MiuiBaseWindowDecoration")
                             val self = param.thisObject
-                            val listener: OnSharedPreferenceChangeListener =
-                                object : OnSharedPreferenceChangeListener {
-                                    override fun onSharedPreferenceChanged(
-                                        sharedPreferences: SharedPreferences, key: String?
-                                    ) {
-                                        XposedBridge.log("On Preference Change...")
-                                        val status = sharedPreferences.getBoolean(key, false)
-                                        self.objectHelper().getObjectOrNull("mTaskSurface")?.let {
-                                            objectHelper().setSkipScreenshot(status)
-                                        }
-                                        XposedBridge.log(
-                                            "MiuiBaseWindowDecoration@${self.toIdentityString()}.setSkipScreenshot($status) has called"
-                                        )
-                                    }
-
-                                    fun finalize() {
-                                        XposedBridge.log("Bye from Listener@${toIdentityString()}... :(")
-                                    }
-                                }
-
-                            XposedBridge.log("Hello from Listener@${listener.toIdentityString()}! :D")
-
-                            @Suppress("DEPRECATION") xSharedPreferences!!.registerOnSharedPreferenceChangeListener(listener)
-                            XposedBridge.log(
-                                "added Listener: ${listener.toIdentityString()} to MiuiBaseWindowDecoration: ${param.thisObject.toIdentityString()}"
-                            )
-                            // get viewModel then set handler to wrapped one so that our listener won't be collected by gc
-                            param.args[10].let {
-                                it.objectHelper {
-                                    val fieldName = "mTaskStackListenerCallback"
-                                    getObjectOrNull(fieldName).let { origHandler ->
-                                        val taskStackListenerCallback = origHandler!!.javaClass.interfaces.filter { i -> i.simpleName == "TaskStackListenerCallback" }
-                                        if (taskStackListenerCallback.isEmpty()) {
-                                            XposedBridge.log(it.javaClass.interfaces.joinToString { it.simpleName })
-                                            throw IllegalStateException()
-                                        }
-                                        val handler = object : InvocationHandler {
-                                            @Suppress("unused")
-                                            val holdIt = listener
-                                            override fun invoke(
-                                                proxy: Any?,
-                                                method: Method,
-                                                args: Array<out Any>?
-                                            ): Any? = method.invoke(origHandler, args)
-                                        }
-                                        XposedBridge.log("Try set handler to ${handler.toIdentityString()} with Listener@${listener.toIdentityString()} wrapped")
-                                        setObject(
-                                            fieldName, Proxy.newProxyInstance(lpparam.classLoader,
-                                                taskStackListenerCallback.toTypedArray(), handler)
-                                        )
-                                        if (it.objectHelper().getObjectOrNull(fieldName)
-                                                .toIdentityString() == handler.toIdentityString()
-                                        ) {
-                                            XposedBridge.log("Settled!")
-                                        }
-                                    }
-                                }
-                            }
+                            systemUIWindowDecorationList.add(self)
                         }
                     }
 

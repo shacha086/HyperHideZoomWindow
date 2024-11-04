@@ -3,6 +3,7 @@ package com.shacha.hyperhidezoomwindow
 import android.annotation.SuppressLint
 import android.content.Context.MODE_PRIVATE
 import android.content.Context.MODE_WORLD_READABLE
+import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -44,6 +45,7 @@ class FirstFragment : Fragment() {
             sharedPreferences.edit(commit = true) {
                 putBoolean("enabled", isChecked)
             }
+            requireContext().sendBroadcast(Intent(BROADCAST_ACTION).apply { putExtra("enabled", isChecked) })
         }
     }
 
