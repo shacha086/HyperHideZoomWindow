@@ -10,9 +10,14 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        jcenter()
         maven { url 'https://maven.aliyun.com/repository/public/' }
+        mavenLocal {
+            content {
+                includeGroup("io.github.libxposed")
+            }
+        }
     }
 }
 rootProject.name = "HyperHideZoomWindow"
 include ':app'
+include ':stub'

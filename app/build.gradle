@@ -1,16 +1,17 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'dev.rikka.tools.refine'
 }
 
 android {
     namespace 'com.shacha.hyperhidezoomwindow'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.shacha.hyperhidezoomwindow"
         minSdk 29
-        targetSdk 33
+        targetSdk 34
         versionCode 3
         versionName "1.2"
     }
@@ -28,9 +29,21 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
 }
 
 dependencies {
-    compileOnly 'de.robv.android.xposed:api:82'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.8.3'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.8.3'
     implementation("com.github.kyuubiran:EzXHelper:2.0.8")
+    implementation("dev.rikka.tools.refine:runtime:4.4.0")
+    compileOnly 'de.robv.android.xposed:api:82'
+    compileOnly project(':stub')
+//    compileOnly 'io.github.libxposed:api:100'
 }
