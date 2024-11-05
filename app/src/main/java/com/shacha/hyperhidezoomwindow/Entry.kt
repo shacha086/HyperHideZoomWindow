@@ -1,14 +1,14 @@
 package com.shacha.hyperhidezoomwindow
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
+import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.ObjectHelper
 import com.github.kyuubiran.ezxhelper.ObjectHelper.Companion.objectHelper
 import com.github.kyuubiran.ezxhelper.finders.ConstructorFinder.`-Static`.constructorFinder
@@ -20,14 +20,11 @@ import com.shacha.hyperhidezoomwindow.Util.toIdentityString
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XSharedPreferences
-import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Method
-import java.lang.reflect.Proxy
 
 class Entry : IXposedHookLoadPackage {
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Throws(ClassNotFoundException::class)
     override fun handleLoadPackage(lpparam: LoadPackageParam) {
         when (lpparam.packageName) {
@@ -131,13 +128,12 @@ class Entry : IXposedHookLoadPackage {
                             }
                         }
                         after { param ->
-                            XposedBridge.log("hooked MiuiBaseWindowDecoration")
                             val self = param.thisObject
+                            Log.d("[$TAG] hooked MiuiBaseWindowDecoration@${self.toIdentityString()}")
                             systemUIWindowDecorationList.add(self)
                         }
                     }
 
-                XposedBridge.log("Registered PreferenceChangeListener")
                 // may useless?
                 loadClass(
                     "com.android.wm.shell.miuimultiwinswitch.miuiwindowdrag.MiuiCoverLayerController",
@@ -146,7 +142,6 @@ class Entry : IXposedHookLoadPackage {
 
                     .constructorFinder().first().createHook {
                         after { param ->
-                            XposedBridge.log("MiuiCoverLayerController: $isEnabled")
                             if (!isEnabled) {
                                 return@after
                             }
